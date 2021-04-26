@@ -33,11 +33,20 @@ def search(request):
 
     return render(request, 'index.html')
 
+
 def upload(request):
     data = json.loads(request.body)
     uploadImages(data["path"])
     return render(request, 'index.html')
 
+
 def findSimilar(request):
-    findSimilarImages(request.GET.get("path"))
+    get = request.GET.get("path")
+    findSimilarImages(get)
+    return render(request, 'index.html')
+
+
+def ocr(request):
+    get = request.GET.get("path")
+    getOCR(get)
     return render(request, 'index.html')

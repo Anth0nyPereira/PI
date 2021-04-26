@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import time
+import threading
 from elasticsearch import Elasticsearch
 
 
@@ -19,7 +20,10 @@ def main():
             "forget to activate a virtual environment?"
         ) from exc
 
-    openES()
+    x = threading.Thread(target=openES)
+    x.start()
+    x.join()
+
     execute_from_command_line(sys.argv)
     closeES()
 
