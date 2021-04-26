@@ -125,7 +125,7 @@ def getPlaces(img_name):
 
 def getOCR(img_path):
         #load installed tesseract-ocr from users pc
-    pytesseract.pytesseract.tesseract_cmd = r'D:\Programs\Tesseract-OCR\tesseract'
+    pytesseract.pytesseract.tesseract_cmd = r'D:\\OCR\\tesseract'
     custom_config = r'--oem 3 --psm 6'
     east = "../frozen_east_text_detection.pb"
     min_confidence = 0.6
@@ -135,7 +135,7 @@ def getOCR(img_path):
     newW = 128
     newH = 128
     net = cv2.dnn.readNet(east)
-    image = cv2.imread(image_path)
+    image = cv2.imread(img_path)
     orig = image.copy()
     (H, W) = image.shape[:2]
     
