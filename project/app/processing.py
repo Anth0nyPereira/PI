@@ -37,6 +37,7 @@ def uploadImages(uri):
 
         norm_feat, height, width = model.vgg_extract_feat(img_path)  # extrair infos
         f = json.dumps(norm_feat, cls=NumpyEncoder)
+        i.features = f
         iJson = json.dumps(i.__dict__)
 
         image = ImageNeo(folder_uri=os.path.split(img_path)[0],
@@ -70,7 +71,7 @@ def uploadImages(uri):
 
         # add features to "cache"
         features.append(norm_feat)
-        i.features = np.array(json.loads(f))
+        i.features = norm_feat
         imageFeatures.append(i)
         s.add(i)
 
@@ -78,7 +79,7 @@ def uploadImages(uri):
 
 
 def findSimilarImages(uri):
-    norm_feat = model.vgg_extract_feat(uri)  # extrair infos
+    norm_feat, height, width = model.vgg_extract_feat(uri)  # extrair infos
     feats = np.array(features)
     scores = np.dot(norm_feat, feats.T)
     rank = np.argsort(scores)[::-1]
@@ -167,7 +168,7 @@ def getOCR(img_path):
     # initialize our set of bounding box rectangles and corresponding
     # confidence scores
     (numRows, numCols) = scores.shape[2:4]
-    rects = set()
+    rects = []
     confidences = []
     # loop over the number of rows
     for y in range(0, numRows):
@@ -230,7 +231,9 @@ def getOCR(img_path):
             # draw the bounding box on the image
             ROI = orig[startY:endY, startX:endX]
             imageText = pytesseract.image_to_string(ROI, config=custom_config)
-            results.add(imageText.replace("\x0c"," ").replace("\n"," "))
+            result = imageText.replace("\x0c", " ").replace("\n", " ")
+            results += result.split(" ")
+
   
     #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # Load image, grayscale, Gaussian blur, adaptive threshold
@@ -252,8 +255,10 @@ def getOCR(img_path):
             x,y,w,h = cv2.boundingRect(c)
             ROI = orig[y:y+h, x:x+w]
             imageText = pytesseract.image_to_string(ROI, config=custom_config)
-            results.add(imageText.replace("\x0c"," ").replace("\n"," "))
-    print(results)
+            result = imageText.replace("\x0c", " ").replace("\n", " ")
+            results += result.split(" ")
+
+    print(set(results))
 
     
 # load all images to memory
