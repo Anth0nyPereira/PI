@@ -127,7 +127,7 @@ def getOCR(img_path):
         #load installed tesseract-ocr from users pc
     pytesseract.pytesseract.tesseract_cmd = r'D:\\OCR\\tesseract'
     custom_config = r'--oem 3 --psm 6'
-    east = "../frozen_east_text_detection.pb"
+    east = "frozen_east_text_detection.pb"
     min_confidence = 0.6
 
     results = []

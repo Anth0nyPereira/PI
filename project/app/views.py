@@ -41,10 +41,12 @@ def upload(request):
 
 
 def findSimilar(request):
-    findSimilarImages(request.GET.get("path"))
+    get = request.GET.get("path")
+    findSimilarImages(get)
     return render(request, 'index.html')
 
 
 def ocr(request):
-    getOCR(request.GET.get("path"))
+    get = request.GET.get("path")
+    getOCR(get)
     return render(request, 'index.html')
