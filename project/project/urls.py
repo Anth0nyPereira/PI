@@ -25,5 +25,6 @@ urlpatterns = [
     path('search/', views.search),
     path('upload/', views.upload),
     path('find/similar/', views.findSimilar),
-    path('ocr/', views.ocr)
+    path('ocr/', views.ocr),
+    path('exif/', views.exif)
 ]

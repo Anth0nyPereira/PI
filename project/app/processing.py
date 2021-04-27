@@ -21,6 +21,10 @@ import pytesseract
 import re
 from nltk.corpus import stopwords, words
 from nltk.tokenize import word_tokenize
+
+from exif import Image as ImgX
+from PIL.ExifTags import TAGS
+
 features = []
 imageFeatures = []
 
@@ -280,6 +284,33 @@ def getOCR(img_path):
         retrn += [elem]
     return set(retrn)
 
+def getExif(img_path):
+    returning = {}
+    try:
+        with open(img_path, 'rb') as image_file:
+            #transform into exif image format
+            current_image = ImgX(image_file)
+            #check if it has a exif
+            if(current_image.has_exif):
+                if ("datetime" in current_image.list_all()):
+                    returning["datetime"] = current_image.datetime
+                if("pixel_x_dimension" in current_image.list_all()):
+                    returning["width"] = current_image.pixel_x_dimension
+                if("pixel_y_dimension" in current_image.list_all()):
+                    returning["height"] = current_image.pixel_y_dimension
+                if ("gps_latitude" in current_image.list_all()):
+                    returning["latitude"] = current_image.gps_latitude
+                if ("gps_longitude" in current_image.list_all()):
+                    returning["longitude"] = current_image.gps_longitude
+            else:
+                raise Exception("No exif")
+    except Exception as e:
+        image = cv2.imread(img_path)
+        (H, W) = image.shape[:2]
+        returning["height"] = H
+        returning["width"] = W
+    print(returning)
+    return returning
     
 # load all images to memory
 def setUp():
