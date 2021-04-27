@@ -18,8 +18,21 @@ from PIL import Image
 from imutils.object_detection import non_max_suppression
 import cv2
 import pytesseract
+import re
+from nltk.corpus import stopwords, words
+from nltk.tokenize import word_tokenize
 features = []
 imageFeatures = []
+
+east = "frozen_east_text_detection.pb"
+net = cv2.dnn.readNet(east)
+
+def filterSentence(sentence):
+    english_vocab = set(w.lower() for w in words.words())
+    stop_words = set(w.lower() for w in stopwords.words('english'))
+    word_tokens = word_tokenize(sentence)
+    filtered = [word for word in word_tokens if word not in stop_words if len(word) >= 4 and (len(word)<=8 or word in english_vocab) ]
+    return filtered
 
 def uploadImages(uri):
     print("----------------------------------------------")
@@ -126,36 +139,34 @@ def getPlaces(img_name):
 
 def getOCR(img_path):
         #load installed tesseract-ocr from users pc
-    pytesseract.pytesseract.tesseract_cmd = r'D:\\OCR\\tesseract'
+    pytesseract.pytesseract.tesseract_cmd = r'D:\\Programs\\tesseract-OCR\\tesseract'
     custom_config = r'--oem 3 --psm 6'
-    east = "frozen_east_text_detection.pb"
     min_confidence = 0.6
 
     results = []
     #These must be multiple of 32
     newW = 128
     newH = 128
-    net = cv2.dnn.readNet(east)
     image = cv2.imread(img_path)
     orig = image.copy()
     (H, W) = image.shape[:2]
-    
+
     # set the new width and height and then determine the ratio in change
     # for both the width and height
     rW = W / float(newW)
     rH = H / float(newH)
-    
+
     # resize the image and grab the new image dimensions
     image = cv2.resize(image, (newW, newH))
     (H, W) = image.shape[:2]
-    
+
     # define the two output layer names for the EAST detector model that
     # we are interested -- the first is the output probabilities and the
     # second can be used to derive the bounding box coordinates of text
     layerNames = [
             "feature_fusion/Conv_7/Sigmoid",
             "feature_fusion/concat_3"]
-    
+
     # construct a blob from the image and then perform a forward pass of
     # the model to obtain the two output layer sets
     blob = cv2.dnn.blobFromImage(image, 1.0, (W, H),
@@ -232,9 +243,8 @@ def getOCR(img_path):
             ROI = orig[startY:endY, startX:endX]
             imageText = pytesseract.image_to_string(ROI, config=custom_config)
             result = imageText.replace("\x0c", " ").replace("\n", " ")
-            results += result.split(" ")
+            results += (re.sub('[^0-9a-zA-Z -]+', '', result)).split(" ")
 
-  
     #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # Load image, grayscale, Gaussian blur, adaptive threshold
     gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
@@ -256,9 +266,19 @@ def getOCR(img_path):
             ROI = orig[y:y+h, x:x+w]
             imageText = pytesseract.image_to_string(ROI, config=custom_config)
             result = imageText.replace("\x0c", " ").replace("\n", " ")
-            results += result.split(" ")
+            results += (re.sub('[^0-9a-zA-Z -]+', '', result)).split(" ")
 
-    print(set(results))
+    #set(results)
+    #Transform set into a single string
+    #filter words
+    retrn = []
+    phrase = ""
+    for ele in set(results):
+        phrase += ele
+        phrase += " "
+    for elem in filterSentence(phrase):
+        retrn += [elem]
+    return set(retrn)
 
     
 # load all images to memory
