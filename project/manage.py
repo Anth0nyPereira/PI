@@ -4,7 +4,7 @@ import os
 import subprocess
 import sys
 import time
-import threading
+
 from elasticsearch import Elasticsearch
 
 
@@ -20,10 +20,8 @@ def main():
             "forget to activate a virtual environment?"
         ) from exc
 
-    x = threading.Thread(target=openES)
-    x.start()
-    x.join()
-
+    openES()
+    time.sleep(5)
     execute_from_command_line(sys.argv)
     closeES()
 
@@ -33,6 +31,7 @@ esPath = "D:\Java\JavaEE\elasticsearch\elasticsearch-7.11.1\\bin\elasticsearch.b
 def openES():
     global elasticsearchClient
     elasticsearchClient = subprocess.Popen(esPath)
+
 
 def closeES():
     elasticsearchClient.terminate()
@@ -45,5 +44,6 @@ def closeES():
 
 
 es = Elasticsearch()
+
 if __name__ == '__main__':
     main()

@@ -1,7 +1,10 @@
 # Create your features here.
+import random
+
 from elasticsearch_dsl import Document, Text, Keyword
 from neomodel import StructuredNode, StringProperty, StructuredRel, IntegerProperty, config, \
-    DateTimeProperty, FloatProperty, RelationshipTo, RelationshipFrom, OneOrMore, ZeroOrMore
+    DateTimeProperty, FloatProperty, RelationshipTo, RelationshipFrom, OneOrMore, ZeroOrMore, BooleanProperty
+from neomodel import db
 from manage import es
 
 config.DATABASE_URL = 'bolt://neo4j:s3cr3t@192.168.56.101:7687'
@@ -16,7 +19,6 @@ class ImageES(Document):
 
     class Index:
         name = 'image'
-
 
 ImageES.init(using=es)
 
@@ -55,9 +57,12 @@ class ImageNeo(StructuredNode):
     format = StringProperty()
     width = IntegerProperty()
     height = IntegerProperty()
+    hash = StringProperty(index=True)
     tag = RelationshipTo("Tag", HasA.rel, model=HasA, cardinality=OneOrMore)
     person = RelationshipTo("Person", DisplayA.rel, model=DisplayA, cardinality=ZeroOrMore)
     location = RelationshipTo("Location", WasTakenIn.rel, model=WasTakenIn)
+    folder = RelationshipTo("Folder", IsIn.rel, model=IsIn)
+
 
 class Tag(StructuredNode):
     name = StringProperty(unique_index=True, required=True)
@@ -80,8 +85,28 @@ class City(StructuredNode):
     country = RelationshipTo(Country, IsIn.rel, model=IsIn)
     location = RelationshipFrom('Location', IsIn.rel, model=IsIn)
 
+
 class Location(StructuredNode):
     name = StringProperty(unique_index=True)
     image = RelationshipFrom(ImageNeo, WasTakenIn.rel, model=WasTakenIn)
     city = RelationshipTo(City, IsIn.rel, model=IsIn)
 
+
+class Folder(StructuredNode):
+    id_ = IntegerProperty(unique_index=True)
+    name = StringProperty(required=True)
+    root = BooleanProperty(default=False)
+    terminated = BooleanProperty(default=False)
+    parent = RelationshipTo("Folder", IsIn.rel, model=IsIn)
+    children = RelationshipFrom("Folder", IsIn.rel, model=IsIn)
+    images = RelationshipFrom("ImageNeo", IsIn.rel, model=IsIn)
+
+    def getImages(self):
+        query = "MATCH (i:ImageNeo)-[:`Is in`]->(f:Folder {id_:$id_}) RETURN i"
+        results, meta = db.cypher_query(query, {"id_": self.id_})
+        return [ImageNeo.inflate(row[0]) for row in results]
+
+    def getChildren(self):
+        query = "MATCH (c:Folder)-[:`Is in`]->(f:Folder {id_:$id_}) RETURN c"
+        results, meta = db.cypher_query(query, {"id_": self.id_})
+        return [self.inflate(row[0]) for row in results]
