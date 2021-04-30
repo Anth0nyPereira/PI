@@ -1,6 +1,10 @@
+import json
+
 from django.shortcuts import render
 from elasticsearch_dsl import Index, Search, Q
-from app.processing import *
+from app.models import ImageES
+from app.processing import uploadImages, findSimilarImages, getOCR, fs
+from manage import es
 
 
 def createIndex(request):
@@ -39,6 +43,11 @@ def upload(request):
     uploadImages(data["path"])
     return render(request, 'index.html')
 
+def deleteFolder(request):
+    if request.method == "PUT":
+        folderToBeDeleted = request.GET.get("f")
+        fs.deleteFolderFromFs(folderToBeDeleted)
+    return render(request, 'index.html')
 
 def findSimilar(request):
     get = request.GET.get("path")

@@ -1,12 +1,13 @@
 import json
 from os.path import join
-
 import numpy as np
 from numpyencoder import NumpyEncoder
+
+from app.fileSystemManager import SimpleFileSystemManager
 from manage import es
 from app.VGG import model
-from app.models import ImageNeo, Person, Tag, Location, Country, City, ImageES
-from app.utils import get_imlist, ImageFeature
+from app.models import ImageNeo, Person, Tag, Location, Country, City, ImageES, Folder
+from app.utils import ImageFeature, getImagesPerUri
 import torch
 from torch.autograd import Variable as V
 import torchvision.models as models
@@ -18,64 +19,105 @@ from PIL import Image
 from imutils.object_detection import non_max_suppression
 import cv2
 import pytesseract
+
+
 features = []
 imageFeatures = []
+fs = SimpleFileSystemManager()
+east = "frozen_east_text_detection.pb"
+net = cv2.dnn.readNet(east)
 
 def uploadImages(uri):
     print("----------------------------------------------")
     print("            featrue extraction starts         ")
     print("----------------------------------------------")
 
-    img_list = get_imlist(uri)
-    s = set(imageFeatures)
-    for index, img_path in enumerate(img_list):
-        img_name = os.path.split(img_path)[1]
-        i = ImageFeature(img_path)
-        if i in s:
-            print("Image " + img_path + " has already been processed")
-            continue
+    dirFiles = getImagesPerUri(uri)
+    for dir in dirFiles.keys():
+        img_list = dirFiles[dir]
 
-        norm_feat, height, width = model.vgg_extract_feat(img_path)  # extrair infos
-        f = json.dumps(norm_feat, cls=NumpyEncoder)
-        i.features = f
-        iJson = json.dumps(i.__dict__)
+        if not fs.exist(dir):
+            lastNode = fs.createUriInNeo4j(dir)
+        else:
+            lastNode = fs.getLastNode(dir)
 
-        image = ImageNeo(folder_uri=os.path.split(img_path)[0],
-                         name=img_name,
-                         processing=iJson,
-                         format=img_name.split(".")[1],
-                         width=width,
-                         height=height)
-        image.save()
-        p = Person(name="wei")
-        p.save()
-        image.person.connect(p, {'coordinates':0.0})
+        folderNeoNode = Folder.nodes.get(id_=lastNode.id)
 
-        place = getPlaces(img_path)
-        if place:
-            t = Tag(name=place)
-            t.save()
-            image.tag.connect(t)
+        for index, img_name in enumerate(img_list):
+            img_path = os.path.join(dir, img_name)
+            i = ImageFeature()
 
-        l = Location(name="UA")
-        l.save()
-        image.location.connect(l, {"latitude":10.0, "longitude":20.0, "altitude":30.0})
+            hash = dhash(img_path)
+            existed = ImageNeo.nodes.get_or_none(hash=hash)
+            i.hash = hash
 
-        c = City(name="Aveiro")
-        c.save()
-        l.city.connect(c)
+            if existed: # if an image already exists in DB (found an ImageNeo with the same hashcode)
+                if existed.folder_uri == dir:
+                    continue
 
-        ct = Country(name="PT")
-        ct.save()
-        ct.city.connect(c)
+                # if the current image's folder is different
+                existed.folder.connect(folderNeoNode)
+            else:
+                # extract infos
+                norm_feat, height, width = model.vgg_extract_feat(img_path)
+                f = json.dumps(norm_feat, cls=NumpyEncoder)
+                i.features = f
+                iJson = json.dumps(i.__dict__)
 
-        # add features to "cache"
-        features.append(norm_feat)
-        i.features = norm_feat
-        imageFeatures.append(i)
-        s.add(i)
+                image = ImageNeo(folder_uri=os.path.split(img_path)[0],
+                                 name=img_name,
+                                 processing=iJson,
+                                 format=img_name.split(".")[1],
+                                 width=width,
+                                 height=height,
+                                 hash=hash).save()
 
-        print("extracting feature from image No. %d , %d images in total " % ((index + 1), len(img_list)))
+                image.folder.connect(folderNeoNode)
+
+                p = Person.nodes.get_or_none(name="wei")
+                if p is None:
+                    p = Person(name="wei").save()
+                image.person.connect(p, {'coordinates':0.0})
+
+                place = getPlaces(img_path)
+                if place:
+                    t = Tag.nodes.get_or_none(name=place)
+                    if t is None:
+                        t = Tag(name=place).save()
+                    image.tag.connect(t)
+
+                wordList = getOCR(img_path)
+                if wordList and len(wordList) > 0:
+                    for word in wordList:
+                        t = Tag.nodes.get_or_none(name=word)
+                        if t is None:
+                            t = Tag(name=word).save()
+                        image.tag.connect(t)
+
+                l = Location.nodes.get_or_none(name="UA")
+                if l is None:
+                    l = Location(name="UA").save()
+
+                image.location.connect(l, {"latitude":10.0, "longitude":20.0, "altitude":30.0})
+
+                c = City.nodes.get_or_none(name="Aveiro")
+                if c is None:
+                    c = City(name="Aveiro").save()
+
+                l.city.connect(c, {"latitude": 10.0, "longitude": 20.0, "altitude": 30.0})
+
+                ct = Country.nodes.get_or_none(name="PT")
+                if ct is None:
+                    ct = Country(name="PT").save()
+
+                c.country.connect(ct, {"latitude": 10.0, "longitude": 20.0, "altitude": 30.0})
+
+                # add features to "cache"
+                features.append(norm_feat)
+                i.features = norm_feat
+                imageFeatures.append(i)
+
+            print("extracting feature from image %s " % (img_path))
 
 
 def findSimilarImages(uri):
@@ -128,34 +170,32 @@ def getOCR(img_path):
         #load installed tesseract-ocr from users pc
     pytesseract.pytesseract.tesseract_cmd = r'D:\\OCR\\tesseract'
     custom_config = r'--oem 3 --psm 6'
-    east = "frozen_east_text_detection.pb"
-    min_confidence = 0.6
 
+    min_confidence = 0.6
     results = []
     #These must be multiple of 32
     newW = 128
     newH = 128
-    net = cv2.dnn.readNet(east)
     image = cv2.imread(img_path)
     orig = image.copy()
     (H, W) = image.shape[:2]
-    
+
     # set the new width and height and then determine the ratio in change
     # for both the width and height
     rW = W / float(newW)
     rH = H / float(newH)
-    
+
     # resize the image and grab the new image dimensions
     image = cv2.resize(image, (newW, newH))
     (H, W) = image.shape[:2]
-    
+
     # define the two output layer names for the EAST detector model that
     # we are interested -- the first is the output probabilities and the
     # second can be used to derive the bounding box coordinates of text
     layerNames = [
             "feature_fusion/Conv_7/Sigmoid",
             "feature_fusion/concat_3"]
-    
+
     # construct a blob from the image and then perform a forward pass of
     # the model to obtain the two output layer sets
     blob = cv2.dnn.blobFromImage(image, 1.0, (W, H),
@@ -234,7 +274,7 @@ def getOCR(img_path):
             result = imageText.replace("\x0c", " ").replace("\n", " ")
             results += result.split(" ")
 
-  
+
     #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # Load image, grayscale, Gaussian blur, adaptive threshold
     gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)
@@ -258,9 +298,64 @@ def getOCR(img_path):
             result = imageText.replace("\x0c", " ").replace("\n", " ")
             results += result.split(" ")
 
-    print(set(results))
+    return set(results)
 
-    
+
+def dhash(imagePath, hashSize=8):
+    image = cv2.imread(imagePath)
+    # convert the image to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # resize the grayscale image, adding a single column (width) so we
+    # can compute the horizontal gradient
+    resized = cv2.resize(gray, (hashSize + 1, hashSize))
+    # compute the (relative) horizontal gradient between adjacent
+    # column pixels
+    diff = resized[:, 1:] > resized[:, :-1]
+    # convert the difference image to a hash
+    h = sum([2 ** i for (i, v) in enumerate(diff.flatten()) if v])
+    return convert_hash(h)
+
+
+def convert_hash(h):
+    # convert the hash to NumPy's 64-bit float and then back to
+    # Python's built in int
+	return int(np.array(h, dtype="float64"))
+
+
+def loadCatgoriesPlaces():
+    # load the class label for scene recognition
+    file_name = 'categories_places365.txt'
+    global classes
+    classes = list()
+    with open(file_name) as class_file:
+        for line in class_file:
+            classes.append(line.strip().split(' ')[0][3:])
+    classes = tuple(classes)
+
+def loadFileSystemManager():
+    roots = Folder.nodes.filter(root=True)
+
+    if not roots: return
+
+    def buildUri(node, uri, ids):
+        if not node: return
+        uri += node.name + "/"
+        ids.append(node.id_)
+
+        if node.terminated:
+            fs.addFullPathUri(uri, ids)
+
+        for child in node.children:
+            buildUri(child, uri, ids)
+            ids.pop() # backtracking
+
+    for root in roots:
+        uri = root.name + "/"
+        ids = [root.id_]
+        for child in root.children:
+            buildUri(child, uri, ids)
+            ids.pop()   # backtracking
+
 # load all images to memory
 def setUp():
     images = ImageNeo.nodes.all()
@@ -298,13 +393,7 @@ def setUp():
                 tags=tags, locations=locations, persons=persons)\
             .save(using=es)
 
-    # load the class label for scene recognition
-    file_name = 'categories_places365.txt'
-    global classes
-    classes = list()
-    with open(file_name) as class_file:
-        for line in class_file:
-            classes.append(line.strip().split(' ')[0][3:])
-    classes = tuple(classes)
+    loadCatgoriesPlaces()
+    loadFileSystemManager()
 
 setUp()
