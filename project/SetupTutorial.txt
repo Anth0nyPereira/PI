@@ -1,0 +1,11 @@
+Edit in  manage.py
+esPath
+to your elastic search .bat file
+
+Edit in models.py
+conifg.DATABASE_URL
+to your database url
+
+Edit in processing.py
+pytesseract.pytesseract.tesseract_cmd
+to your tesseract ocr installed file

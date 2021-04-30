@@ -59,3 +59,8 @@ def ocr(request):
     get = request.GET.get("path")
     getOCR(get)
     return render(request, 'index.html')
+
+def exif(request):
+    get = request.GET.get("path")
+    getExif(get)
+    return render(request, 'index.html')

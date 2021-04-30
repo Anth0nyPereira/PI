@@ -19,13 +19,27 @@ from PIL import Image
 from imutils.object_detection import non_max_suppression
 import cv2
 import pytesseract
+import re
+from nltk.corpus import stopwords, words
+from nltk.tokenize import word_tokenize
 
+from exif import Image as ImgX
 
 features = []
 imageFeatures = []
 fs = SimpleFileSystemManager()
 east = "frozen_east_text_detection.pb"
 net = cv2.dnn.readNet(east)
+
+east = "frozen_east_text_detection.pb"
+net = cv2.dnn.readNet(east)
+
+def filterSentence(sentence):
+    english_vocab = set(w.lower() for w in words.words())
+    stop_words = set(w.lower() for w in stopwords.words('english'))
+    word_tokens = word_tokenize(sentence)
+    filtered = [word for word in word_tokens if word not in stop_words if len(word) >= 4 and (len(word)<=8 or word in english_vocab) ]
+    return filtered
 
 def uploadImages(uri):
     print("----------------------------------------------")
@@ -168,9 +182,8 @@ def getPlaces(img_name):
 
 def getOCR(img_path):
         #load installed tesseract-ocr from users pc
-    pytesseract.pytesseract.tesseract_cmd = r'D:\\OCR\\tesseract'
+    pytesseract.pytesseract.tesseract_cmd = r'D:\\Programs\\tesseract-OCR\\tesseract'
     custom_config = r'--oem 3 --psm 6'
-
     min_confidence = 0.6
     results = []
     #These must be multiple of 32
@@ -272,8 +285,7 @@ def getOCR(img_path):
             ROI = orig[startY:endY, startX:endX]
             imageText = pytesseract.image_to_string(ROI, config=custom_config)
             result = imageText.replace("\x0c", " ").replace("\n", " ")
-            results += result.split(" ")
-
+            results += (re.sub('[^0-9a-zA-Z -]+', '', result)).split(" ")
 
     #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # Load image, grayscale, Gaussian blur, adaptive threshold
@@ -296,65 +308,46 @@ def getOCR(img_path):
             ROI = orig[y:y+h, x:x+w]
             imageText = pytesseract.image_to_string(ROI, config=custom_config)
             result = imageText.replace("\x0c", " ").replace("\n", " ")
-            results += result.split(" ")
+            results += (re.sub('[^0-9a-zA-Z -]+', '', result)).split(" ")
 
-    return set(results)
+    #set(results)
+    #Transform set into a single string
+    #filter words
+    retrn = []
+    phrase = ""
+    for ele in set(results):
+        phrase += ele
+        phrase += " "
+    for elem in filterSentence(phrase):
+        retrn += [elem]
+    return set(retrn)
 
-
-def dhash(imagePath, hashSize=8):
-    image = cv2.imread(imagePath)
-    # convert the image to grayscale
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    # resize the grayscale image, adding a single column (width) so we
-    # can compute the horizontal gradient
-    resized = cv2.resize(gray, (hashSize + 1, hashSize))
-    # compute the (relative) horizontal gradient between adjacent
-    # column pixels
-    diff = resized[:, 1:] > resized[:, :-1]
-    # convert the difference image to a hash
-    h = sum([2 ** i for (i, v) in enumerate(diff.flatten()) if v])
-    return convert_hash(h)
-
-
-def convert_hash(h):
-    # convert the hash to NumPy's 64-bit float and then back to
-    # Python's built in int
-	return int(np.array(h, dtype="float64"))
-
-
-def loadCatgoriesPlaces():
-    # load the class label for scene recognition
-    file_name = 'categories_places365.txt'
-    global classes
-    classes = list()
-    with open(file_name) as class_file:
-        for line in class_file:
-            classes.append(line.strip().split(' ')[0][3:])
-    classes = tuple(classes)
-
-def loadFileSystemManager():
-    roots = Folder.nodes.filter(root=True)
-
-    if not roots: return
-
-    def buildUri(node, uri, ids):
-        if not node: return
-        uri += node.name + "/"
-        ids.append(node.id_)
-
-        if node.terminated:
-            fs.addFullPathUri(uri, ids)
-
-        for child in node.children:
-            buildUri(child, uri, ids)
-            ids.pop() # backtracking
-
-    for root in roots:
-        uri = root.name + "/"
-        ids = [root.id_]
-        for child in root.children:
-            buildUri(child, uri, ids)
-            ids.pop()   # backtracking
+def getExif(img_path):
+    returning = {}
+    try:
+        with open(img_path, 'rb') as image_file:
+            #transform into exif image format
+            current_image = ImgX(image_file)
+            #check if it has a exif
+            if(current_image.has_exif):
+                if ("datetime" in current_image.list_all()):
+                    returning["datetime"] = current_image.datetime
+                if("pixel_x_dimension" in current_image.list_all()):
+                    returning["width"] = current_image.pixel_x_dimension
+                if("pixel_y_dimension" in current_image.list_all()):
+                    returning["height"] = current_image.pixel_y_dimension
+                if ("gps_latitude" in current_image.list_all()):
+                    returning["latitude"] = current_image.gps_latitude
+                if ("gps_longitude" in current_image.list_all()):
+                    returning["longitude"] = current_image.gps_longitude
+            else:
+                raise Exception("No exif")
+    except Exception as e:
+        image = cv2.imread(img_path)
+        (H, W) = image.shape[:2]
+        returning["height"] = H
+        returning["width"] = W
+    return returning
 
 # load all images to memory
 def setUp():

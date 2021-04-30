@@ -26,7 +26,7 @@ def main():
     closeES()
 
 # CHANGE TO YOUR PATH!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-esPath = "D:\Java\JavaEE\elasticsearch\elasticsearch-7.11.1\\bin\elasticsearch.bat"
+esPath = "D:\\Programs\\elasticsearch-7.12.0\\bin\\elasticsearch.bat"
 
 def openES():
     global elasticsearchClient
