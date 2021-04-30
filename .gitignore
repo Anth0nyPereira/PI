@@ -33,5 +33,6 @@ build/
 
 ### VS Code ###
 .vscode/
+.idea/
 __pycache__/
 venv/

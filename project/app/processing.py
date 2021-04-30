@@ -322,6 +322,61 @@ def getOCR(img_path):
         retrn += [elem]
     return set(retrn)
 
+def dhash(imagePath, hashSize=8):
+    image = cv2.imread(imagePath)
+    # convert the image to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # resize the grayscale image, adding a single column (width) so we
+    # can compute the horizontal gradient
+    resized = cv2.resize(gray, (hashSize + 1, hashSize))
+    # compute the (relative) horizontal gradient between adjacent
+    # column pixels
+    diff = resized[:, 1:] > resized[:, :-1]
+    # convert the difference image to a hash
+    h = sum([2 ** i for (i, v) in enumerate(diff.flatten()) if v])
+    return convert_hash(h)
+
+
+def convert_hash(h):
+    # convert the hash to NumPy's 64-bit float and then back to
+    # Python's built in int
+	return int(np.array(h, dtype="float64"))
+
+
+def loadCatgoriesPlaces():
+    # load the class label for scene recognition
+    file_name = 'categories_places365.txt'
+    global classes
+    classes = list()
+    with open(file_name) as class_file:
+        for line in class_file:
+            classes.append(line.strip().split(' ')[0][3:])
+    classes = tuple(classes)
+
+def loadFileSystemManager():
+    roots = Folder.nodes.filter(root=True)
+
+    if not roots: return
+
+    def buildUri(node, uri, ids):
+        if not node: return
+        uri += node.name + "/"
+        ids.append(node.id_)
+
+        if node.terminated:
+            fs.addFullPathUri(uri, ids)
+
+        for child in node.children:
+            buildUri(child, uri, ids)
+            ids.pop() # backtracking
+
+    for root in roots:
+        uri = root.name + "/"
+        ids = [root.id_]
+        for child in root.children:
+            buildUri(child, uri, ids)
+            ids.pop()   # backtracking
+            
 def getExif(img_path):
     returning = {}
     try:
