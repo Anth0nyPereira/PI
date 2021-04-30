@@ -24,6 +24,8 @@ import pytesseract
 features = []
 imageFeatures = []
 fs = SimpleFileSystemManager()
+east = "frozen_east_text_detection.pb"
+net = cv2.dnn.readNet(east)
 
 def uploadImages(uri):
     print("----------------------------------------------")
@@ -72,8 +74,9 @@ def uploadImages(uri):
 
                 image.folder.connect(folderNeoNode)
 
-                p = Person(name="wei").save()
-
+                p = Person.nodes.get_or_none(name="wei")
+                if p is None:
+                    p = Person(name="wei").save()
                 image.person.connect(p, {'coordinates':0.0})
 
                 place = getPlaces(img_path)
@@ -91,21 +94,30 @@ def uploadImages(uri):
                             t = Tag(name=word).save()
                         image.tag.connect(t)
 
-                l = Location(name="UA").save()
+                l = Location.nodes.get_or_none(name="UA")
+                if l is None:
+                    l = Location(name="UA").save()
+
                 image.location.connect(l, {"latitude":10.0, "longitude":20.0, "altitude":30.0})
 
-                c = City(name="Aveiro").save()
-                l.city.connect(c)
+                c = City.nodes.get_or_none(name="Aveiro")
+                if c is None:
+                    c = City(name="Aveiro").save()
 
-                ct = Country(name="PT").save()
-                ct.city.connect(c)
+                l.city.connect(c, {"latitude": 10.0, "longitude": 20.0, "altitude": 30.0})
+
+                ct = Country.nodes.get_or_none(name="PT")
+                if ct is None:
+                    ct = Country(name="PT").save()
+
+                c.country.connect(ct, {"latitude": 10.0, "longitude": 20.0, "altitude": 30.0})
 
                 # add features to "cache"
                 features.append(norm_feat)
                 i.features = norm_feat
                 imageFeatures.append(i)
 
-            print("extracting feature from image No. %d , %d images in total " % ((index + 1), len(img_list)))
+            print("extracting feature from image %s " % (img_path))
 
 
 def findSimilarImages(uri):
@@ -158,34 +170,32 @@ def getOCR(img_path):
         #load installed tesseract-ocr from users pc
     pytesseract.pytesseract.tesseract_cmd = r'D:\\OCR\\tesseract'
     custom_config = r'--oem 3 --psm 6'
-    east = "frozen_east_text_detection.pb"
-    min_confidence = 0.6
 
+    min_confidence = 0.6
     results = []
     #These must be multiple of 32
     newW = 128
     newH = 128
-    net = cv2.dnn.readNet(east)
     image = cv2.imread(img_path)
     orig = image.copy()
     (H, W) = image.shape[:2]
-    
+
     # set the new width and height and then determine the ratio in change
     # for both the width and height
     rW = W / float(newW)
     rH = H / float(newH)
-    
+
     # resize the image and grab the new image dimensions
     image = cv2.resize(image, (newW, newH))
     (H, W) = image.shape[:2]
-    
+
     # define the two output layer names for the EAST detector model that
     # we are interested -- the first is the output probabilities and the
     # second can be used to derive the bounding box coordinates of text
     layerNames = [
             "feature_fusion/Conv_7/Sigmoid",
             "feature_fusion/concat_3"]
-    
+
     # construct a blob from the image and then perform a forward pass of
     # the model to obtain the two output layer sets
     blob = cv2.dnn.blobFromImage(image, 1.0, (W, H),
@@ -264,7 +274,7 @@ def getOCR(img_path):
             result = imageText.replace("\x0c", " ").replace("\n", " ")
             results += result.split(" ")
 
-  
+
     #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # Load image, grayscale, Gaussian blur, adaptive threshold
     gray = cv2.cvtColor(orig, cv2.COLOR_BGR2GRAY)

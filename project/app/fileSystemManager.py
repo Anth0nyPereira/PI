@@ -4,7 +4,7 @@ from app.utils import getRandomNumber
 
 
 class Node:
-    def __init__(self, name: str, id: int):
+    def __init__(self, name: str, id: int, terminated=False):
         self.name = name  # folder name
         self.children = {}  # key: folder name, value: node
         self.parent = None
@@ -12,7 +12,7 @@ class Node:
 
         # if current node is the last one of an uri, it is terminated
         # ex: for uri C:\User\abcd\ef\, node 'ef' is terminated
-        self.terminated = False
+        self.terminated = terminated
 
     def __hash__(self):
         return hash(self.name)
@@ -111,7 +111,7 @@ class SimpleFileSystemManager:
             node = self.trees[root]
         else:
             savedNode = Folder(id_=getRandomNumber(), name=root, root=True,
-                          terminated=True if len(folders) == 1 else False).save()
+                               terminated=True if len(folders) == 1 else False).save()
             self.trees[root] = node = Node(root, savedNode.id_)
 
         for i in range(1, len(folders)):
@@ -124,7 +124,7 @@ class SimpleFileSystemManager:
                 parent = Folder.nodes.get(id_=node.id)
                 savedNode.parent.connect(parent)
 
-                newNode = Node(folder, savedNode.id_)
+                newNode = Node(folder, savedNode.id_, savedNode.terminated)
                 newNode.parent = node
                 node.children[folder] = node = newNode
 
@@ -148,18 +148,65 @@ class SimpleFileSystemManager:
                 node = node.children.pop(folder)
 
             folderstoBeDeleted = [Folder.nodes.get(id_=node.id)]
-
             while folderstoBeDeleted != []:
                 f = folderstoBeDeleted.pop()
                 images = f.getImages()
 
                 if images is not None:
                     for image in images:
-                        image.folder.disconnect(f)
-                        if len(image.folder) == 0:
+                        self.disconnectImageRelations(image, image.tag)
+                        self.disconnectImageRelations(image, image.person)
+                        self.disconnectImageLocations(image)
+
+                        if len(image.folder) > 1:
+                            image.folder.disconnect(f)
+                            if set(image.folder_uri) == self.fullPathForFolderNode(f):
+                                for folder in image.folder:
+                                    if folder.id != f.id:
+                                        image.folder_uri = self.fullPathForFolderNode(folder)
+                                        break
+                        else:
                             image.delete()
 
                 childrenFolders = f.getChildren()
                 if childrenFolders:
                     folderstoBeDeleted.extend(list(childrenFolders))
                 f.delete()
+
+
+    def fullPathForFolderNode(self, f):
+        paths = f.getFullPath()
+        paths = set(paths)
+        paths.add(f.name)
+        return paths
+
+    def disconnectImageRelations(self, image, relations):
+        for rel in relations:
+            if len(rel.image) > 1:
+                if isinstance(rel, Person):
+                    image.person.disconnect(rel)
+                else:
+                    image.tag.disconnect(rel)
+            else:
+                rel.delete()
+
+    def disconnectImageLocations(self, image):
+        if len(image.location) != 0:
+            l = image.location[0]
+            if len(l.image) > 1:
+                image.location.disconnect(l)
+                return
+
+            cy = l.city[0]
+
+            if len(cy.location) > 1:
+                l.delete()
+                return
+
+            ct = cy.country[0]
+
+            if len(ct.city) == 1:
+                ct.delete()
+
+            cy.delete()
+            l.delete()

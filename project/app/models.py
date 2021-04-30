@@ -76,18 +76,18 @@ class Person(StructuredNode):
 
 
 class Country(StructuredNode):
-    name = StringProperty(unique_index=True)
+    name = StringProperty(unique_index=True, required=True)
     city = RelationshipFrom('City', IsIn.rel, model=IsIn)
 
 
 class City(StructuredNode):
-    name = StringProperty(unique_index=True)
+    name = StringProperty(unique_index=True, required=True)
     country = RelationshipTo(Country, IsIn.rel, model=IsIn)
     location = RelationshipFrom('Location', IsIn.rel, model=IsIn)
 
 
 class Location(StructuredNode):
-    name = StringProperty(unique_index=True)
+    name = StringProperty(unique_index=True, required=True)
     image = RelationshipFrom(ImageNeo, WasTakenIn.rel, model=WasTakenIn)
     city = RelationshipTo(City, IsIn.rel, model=IsIn)
 
@@ -110,3 +110,8 @@ class Folder(StructuredNode):
         query = "MATCH (c:Folder)-[:`Is in`]->(f:Folder {id_:$id_}) RETURN c"
         results, meta = db.cypher_query(query, {"id_": self.id_})
         return [self.inflate(row[0]) for row in results]
+
+    def getFullPath(self):
+        query = "MATCH (f:Folder {id_:$id_})-[*]-> (c:Folder) RETURN c.name"
+        results, meta = db.cypher_query(query, {"id_": self.id_})
+        return [path[0] for path in results]

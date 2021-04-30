@@ -20,8 +20,8 @@ def main():
             "forget to activate a virtual environment?"
         ) from exc
 
-    openES()
-    time.sleep(5)
+   # openES()
+   # time.sleep(5)
     execute_from_command_line(sys.argv)
     closeES()
 
