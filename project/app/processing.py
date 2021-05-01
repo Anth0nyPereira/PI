@@ -31,9 +31,6 @@ fs = SimpleFileSystemManager()
 east = "frozen_east_text_detection.pb"
 net = cv2.dnn.readNet(east)
 
-east = "frozen_east_text_detection.pb"
-net = cv2.dnn.readNet(east)
-
 def filterSentence(sentence):
     english_vocab = set(w.lower() for w in words.words())
     stop_words = set(w.lower() for w in stopwords.words('english'))

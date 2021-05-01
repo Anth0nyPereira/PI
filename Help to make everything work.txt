@@ -1,0 +1,26 @@
+btw para limpar as coisas para fazer merge às branches em condições e o gitignore funcionar
+façam
+1-(update ao gitignore como quiserem)
+2-executar: git rm --cached -r .
+3-executar: git add .
+4-executar: git commit -m "adoro o git ele pode ir para o inferno"
+5-executar: git push
+
+YAY no more venv no more idea no more pycache
+
+//////////////////////////////////////////////
+Para tudo funcionar tens que mudar:
+
+Em manage.py têm:
+esPath = "D:\\Programs\\elasticsearch-7.12.0\\bin\\elasticsearch.bat"
+
+Em models.py têm:
+config.DATABASE_URL = 'bolt://neo4j:12345@localhost:7687'
+
+Em processing.py têm:
+pytesseract.pytesseract.tesseract_cmd = r'D:\\Programs\\tesseract-OCR\\tesseract'
+
+https://github.com/tesseract-ocr/tesseract
+(saquei este para windows)
+https://github.com/UB-Mannheim/tesseract/wiki
+
