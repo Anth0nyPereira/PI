@@ -10,7 +10,7 @@ from neomodel.match import Traversal
 # from neomodel import Traversal
 from app.utils import showDict
 import app.models
-from app.models import Person, DisplayA
+from app.models import Person, DisplayA, ImageNeo
 
 from app.models import Person
 
@@ -50,9 +50,9 @@ class PersonsForm(forms.Form):
         print('showDict', showDict)
         all_rels = []
         if showDict['unverified']:
-            all_rels += [ (person.image.relationship(img), person, img) for person in people for img in person.image.all() if not person.image.relationship(img).approved]
+            all_rels += [ (DisplayA.inflate(rel), person,ImageNeo.inflate(rel)) for person in people for rel in person.getDetails() if not DisplayA.inflate(rel).approved]
         if showDict['verified']:
-            all_rels += [ (person.image.relationship(img), person, img) for person in people for img in person.image.all() if person.image.relationship(img).approved]
+            all_rels += [ (DisplayA.inflate(rel), person,ImageNeo.inflate(rel)) for person in people for rel in person.getDetails() if DisplayA.inflate(rel).approved]
 
 
         for index, rel in enumerate(all_rels):

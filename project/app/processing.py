@@ -14,7 +14,7 @@ from numpyencoder import NumpyEncoder
 from app.fileSystemManager import SimpleFileSystemManager
 from app.models import ImageNeo, Person, Tag, Location, Country, City, Folder, ImageES
 from app.object_extraction import ObjectExtract
-from app.utils import ImageFeature, getImagesPerUri, ImageFeaturesManager, lock, get_and_save_thumbnail
+from app.utils import ImageFeature, getImagesPerUri, ImageFeaturesManager, lock,faceRecLock, get_and_save_thumbnail
 import torch
 from torch.autograd import Variable as V
 import torchvision.models as models
@@ -51,7 +51,7 @@ east = "frozen_east_text_detection.pb"
 net = cv2.dnn.readNet(east)
 
 # load installed tesseract-ocr from users pc
-pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
+pytesseract.pytesseract.tesseract_cmd = r'D:\\Programs\\tesseract-OCR\\tesseract'
 custom_config = r'--oem 3 --psm 6'
 
 # used in getPlaces
@@ -91,7 +91,6 @@ def uploadImages(uri):
 
     dirFiles = getImagesPerUri(uri)
     taskOne, taskTwo = divideTaskInTwo(dirFiles)
-
     do(processing, taskOne)
     print("------------------task 1------------------")
     do(processing, taskTwo)
@@ -99,7 +98,7 @@ def uploadImages(uri):
 
 def face_rec_part(read_image, img_path, tags, image):
     # image aberta -> read_image
-    print("--- comeca a parte de face rec ---")
+    print("--- comeca a parte de face rec da img: ",img_path, " ---")
     openimage, boxes = frr.getFaceBoxes(open_img=read_image, image_path=img_path)
 
     for b in boxes:
@@ -139,6 +138,7 @@ def processing(dirFiles):
         try:
             for index, img_name in enumerate(img_list):
                 img_path = os.path.join(dir, img_name)
+                print("I am here: ", img_path)
                 i = ImageFeature()
 
                 read_image = cv2.imread(img_path)
@@ -241,8 +241,9 @@ def processing(dirFiles):
                         image.tag.connect(tag)
 
                     # !!!
+                    faceRecLock.acquire()
                     face_rec_part(read_image, img_path, tags, image)
-
+                    faceRecLock.release()
 
                     #     p = Person.nodes.get_or_none(name=name)
 
