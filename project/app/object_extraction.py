@@ -1,5 +1,4 @@
 import torch
-from app.utils import objectExtractionThreshold
 # https://github.com/ultralytics/yolov5/issues/36
 
 class ObjectExtract:
@@ -16,4 +15,4 @@ class ObjectExtract:
         results = self.model(image_path)
 
         res = results.pandas().xyxy[0][['confidence', 'name']]
-        return [ (res['name']   [i], res['confidence'][i]) for i in range(res.shape[0]) if res['confidence'][i] >= objectExtractionThreshold]
+        return res

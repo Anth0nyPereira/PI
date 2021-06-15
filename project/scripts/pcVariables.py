@@ -1,27 +1,34 @@
 # CHANGE TO YOUR PATH!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-dbsPath = 'bolt://neo4j:12345@localhost:7687'
-ocrPath = 'app/resources/tesseract-OCR/tesseract'
-essPath = 'app/resources/elasticSearch/bin/elasticsearch.bat'
-
-var = 3
 
 ## Windows Iglesias:
-if var == 1:
-    ocrPath = r'D:\Programs\tesseract-OCR\tesseract'
-    essPath = "D:\\Programs\\elasticsearch-7.12.0\\bin\\elasticsearch.bat"
+"""
+ocrPath = r'D:\Programs\tesseract-OCR\tesseract'
+essPath = "D:\\Programs\\elasticsearch-7.12.0\\bin\\elasticsearch"
+dbsPath = 'bolt://neo4j:12345@localhost:7687'
+"""
+
 ## Windows Wei:
-elif var == 2:
-    ocrPath = r'D:\OCR\tesseract'
-    essPath = "D:\Java\JavaEE\elasticsearch\elasticsearch-7.11.1\\bin\elasticsearch.bat"
+"""
+ocrPath = r''
+essPath = ""
+dbsPath = 'bolt://neo4j:s3cr3t@192.168.56.101:7687'
+"""
+
 ## Ubuntu Anthony:
-elif var == 3:
-    ocrPath = r'/usr/bin/tesseract'
-    essPath = "/home/anth0nypereira/elasticsearch-7.12.1/bin/elasticsearch"
+"""
+ocrPath = r''
+essPath = ""
+dbsPath = 'bolt://neo4j:pass@localhost:7687'
+"""
+
 ## Ubuntu Alexa:
-elif var == 4:
-    ocrPath = r'/usr/bin/tesseract'
-    essPath = "/home/alexis/Downloads/elasticsearch-7.12.1/bin/elasticsearch"
+"""
+ocrPath = r'/usr/bin/tesseract'
+esPath = "/home/alexis/elasticsearch-7.12.1/bin/elasticsearch"
+dbsPath = 'bolt://neo4j:a12345a@localhost:7687'
+"""
+
 ## Ubuntu Mariana:
-else:
-    ocrPath = r'/usr/bin/tesseract'
-    essPath = "/home/mar/Documents/UA/6-semester/PI/elasticsearch-7.12.0/bin/elasticsearch"
+ocrPath = r'/usr/bin/tesseract'
+essPath = ""
+dbsPath = 'bolt://neo4j:password@localhost:7687'

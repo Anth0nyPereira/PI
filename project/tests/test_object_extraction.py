@@ -2,9 +2,7 @@ from django.test import TestCase
 from app.models import ImageNeo
 from app.object_extraction import ObjectExtract
 import os
-img_path = os.path.dirname(os.path.realpath(__file__))
-head,_ = os.path.split(img_path)
-img_path = os.path.join(head,"app/static/tests") + "/face.jpg"
+img_path = os.path.dirname(os.path.realpath(__file__)) + "/face.jpg"
 extractor = ObjectExtract()
 class OETestCase(TestCase):
 
